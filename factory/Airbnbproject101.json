@@ -1,0 +1,9 @@
+{
+	"name": "Airbnbproject101",
+	"location": "canadacentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "df266cb1-ca3e-4e55-8986-f0813a72b63a",
+		"tenantId": "ce60ee66-40bd-4014-ad00-ca9cf41427d8"
+	}
+}
