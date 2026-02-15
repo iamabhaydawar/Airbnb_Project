@@ -1,0 +1,9 @@
+{
+	"name": "azurefactory23",
+	"location": "canadacentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "3dedbc1b-d1de-4e47-a81d-a92861352971",
+		"tenantId": "ce60ee66-40bd-4014-ad00-ca9cf41427d8"
+	}
+}
