@@ -4,7 +4,7 @@
 		"annotations": [],
 		"type": "CosmosDb",
 		"typeProperties": {
-			"accountEndpoint": "https://devcosmosdb21.documents.azure.com:443/",
+			"accountEndpoint": "https://cosmosdb19.documents.azure.com:443/",
 			"database": "Airbnb"
 		}
 	},
