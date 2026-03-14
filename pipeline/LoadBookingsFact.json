@@ -15,11 +15,33 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
+					"dataflow": {
+						"referenceName": "BookingDataTransformation",
+						"type": "DataFlowReference",
+						"parameters": {
+							"check_in_date": "check_in_date",
+							"check_out_date": "check_out_date",
+							"booking_date": "booking_date",
+							"city": "city",
+							"country": "country",
+							"property_location": "property_location",
+							"booking_id": "booking_id",
+							"customer_id": "customer_id",
+							"timestamp": "timestamp",
+							"owner_id": "owner_id",
+							"property_id": "property_id",
+							"amount": "amount",
+							"currency": "currency"
+						}
+					},
 					"compute": {
 						"coreCount": 8,
 						"computeType": "General"
 					},
-					"traceLevel": "Fine"
+					"traceLevel": "Fine",
+					"continuationSettings": {
+						"customizedCheckpointKey": "abbbcff4-524d-4f38-94ec-1706625060af"
+					}
 				}
 			},
 			{
