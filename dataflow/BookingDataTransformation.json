@@ -11,6 +11,13 @@
 					},
 					"name": "BookingDataTransformation",
 					"description": "Import data from BookingDataCosmos"
+				},
+				{
+					"dataset": {
+						"referenceName": "BookingsFactDataSynapse",
+						"type": "DatasetReference"
+					},
+					"name": "SynapseForLookup"
 				}
 			],
 			"sinks": [
@@ -19,8 +26,8 @@
 						"referenceName": "BookingsFactDataSynapse",
 						"type": "DatasetReference"
 					},
-					"name": "SynapseForLookup",
-					"description": "Import data from BookingsFactDataSynapse"
+					"name": "SynapseFactWrite",
+					"description": "Export data to BookingsFactDataSynapse"
 				}
 			],
 			"transformations": [
@@ -32,8 +39,14 @@
 					"name": "DerivedColumns"
 				},
 				{
-					"name": "lookupInSynapse",
-					"description": "Loopup in 'DerivedColumns' from 'SynapseForLookup'"
+					"name": "LookupInSynapse"
+				},
+				{
+					"name": "alterRowForUpdate",
+					"description": "Inserting, updating, deleting, and/or upserting using expressions on columns\n'SynapseforLookup@booking_id'"
+				},
+				{
+					"name": "FinalColumns"
 				}
 			],
 			"scriptLines": [
@@ -57,6 +70,29 @@
 				"     enableChangeFeed: true,",
 				"     changeFeedStartFromTheBeginning: false,",
 				"     format: 'document') ~> BookingDataTransformation",
+				"source(output(",
+				"          booking_id as string,",
+				"          property_id as string,",
+				"          customer_id as integer,",
+				"          owner_id as string,",
+				"          check_in_date as date,",
+				"          check_out_date as date,",
+				"          booking_date as timestamp,",
+				"          amount as double,",
+				"          currency as string,",
+				"          city as string,",
+				"          country as string,",
+				"          full_address as string,",
+				"          stay_duration as long,",
+				"          booking_year as integer,",
+				"          booking_month as integer,",
+				"          timestamp as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table',",
+				"     staged: true) ~> SynapseForLookup",
 				"BookingDataTransformation split($check_out_date<$check_in_date,",
 				"     disjoint: false) ~> DataQualityCheck@(BadRecords, AcceptedRecords)",
 				"DataQualityCheck@AcceptedRecords derive(stay_duration = (toTimestamp($check_out_date) - toTimestamp($check_in_date)),",
@@ -74,16 +110,54 @@
 				"          customer_id = $customer_id,",
 				"          timestamp = $timestamp,",
 				"          owner_id = $owner_id,",
-				"          check_in_date = $check_in_date,",
 				"          property_id = $property_id,",
 				"          amount = $amount,",
 				"          currency = $currency) ~> DerivedColumns",
-				"DerivedColumns, BookingDataTransformation lookup(ERROR_FUNCTION('') == ERROR_FUNCTION(''),",
+				"DerivedColumns, SynapseForLookup lookup(DerivedColumns@booking_id == SynapseForLookup@booking_id,",
 				"     multiple: false,",
 				"     pickup: 'first',",
-				"     desc(ERROR_FUNCTION(''), true),",
-				"     broadcast: 'auto')~> lookupInSynapse",
-				"lookupInSynapse sink(allowSchemaDrift: true,",
+				"     desc(SynapseForLookup@timestamp, true),",
+				"     broadcast: 'auto')~> LookupInSynapse",
+				"LookupInSynapse alterRow(insertIf(isNull(SynapseForLookup@booking_id)),",
+				"     updateIf(not(isNull(SynapseForLookup@booking_id)))) ~> alterRowForUpdate",
+				"alterRowForUpdate select(mapColumn(",
+				"          stay_duration = DerivedColumns@stay_duration,",
+				"          booking_year = DerivedColumns@booking_year,",
+				"          booking_month = DerivedColumns@booking_month,",
+				"          full_address = DerivedColumns@full_address,",
+				"          city = DerivedColumns@city,",
+				"          country = DerivedColumns@country,",
+				"          booking_id = DerivedColumns@booking_id,",
+				"          booking_date = DerivedColumns@booking_date,",
+				"          check_out_date = DerivedColumns@check_out_date,",
+				"          check_in_date = DerivedColumns@check_in_date,",
+				"          customer_id = DerivedColumns@customer_id,",
+				"          timestamp = DerivedColumns@timestamp,",
+				"          owner_id = DerivedColumns@owner_id,",
+				"          check_in_date = DerivedColumns@check_in_date,",
+				"          property_id = DerivedColumns@property_id,",
+				"          amount = DerivedColumns@amount,",
+				"          currency = DerivedColumns@currency,",
+				"          booking_id = SynapseForLookup@booking_id,",
+				"          property_id = SynapseForLookup@property_id,",
+				"          customer_id = SynapseForLookup@customer_id,",
+				"          owner_id = SynapseForLookup@owner_id,",
+				"          check_in_date = SynapseForLookup@check_in_date,",
+				"          check_out_date = SynapseForLookup@check_out_date,",
+				"          booking_date = SynapseForLookup@booking_date,",
+				"          amount = SynapseForLookup@amount,",
+				"          currency = SynapseForLookup@currency,",
+				"          city = SynapseForLookup@city,",
+				"          country = SynapseForLookup@country,",
+				"          full_address = SynapseForLookup@full_address,",
+				"          stay_duration = SynapseForLookup@stay_duration,",
+				"          booking_year = SynapseForLookup@booking_year,",
+				"          booking_month = SynapseForLookup@booking_month,",
+				"          timestamp = SynapseForLookup@timestamp",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> FinalColumns",
+				"FinalColumns sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          booking_id as string,",
@@ -105,14 +179,15 @@
 				"     ),",
 				"     deletable:false,",
 				"     insertable:true,",
-				"     updateable:false,",
+				"     updateable:true,",
 				"     upsertable:false,",
+				"     keys:['booking_id'],",
 				"     format: 'table',",
 				"     staged: true,",
 				"     allowCopyCommand: true,",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     errorHandlingOption: 'stopOnFirstError') ~> SynapseForLookup"
+				"     errorHandlingOption: 'stopOnFirstError') ~> SynapseFactWrite"
 			]
 		}
 	}
