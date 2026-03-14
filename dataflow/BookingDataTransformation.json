@@ -1,13 +1,118 @@
 {
-	"name": "dataflow1",
+	"name": "BookingDataTransformation",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
-			"sources": [],
-			"sinks": [],
-			"transformations": [],
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "BookingsDataCosmos",
+						"type": "DatasetReference"
+					},
+					"name": "BookingDataTransformation",
+					"description": "Import data from BookingDataCosmos"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "BookingsFactDataSynapse",
+						"type": "DatasetReference"
+					},
+					"name": "SynapseForLookup",
+					"description": "Import data from BookingsFactDataSynapse"
+				}
+			],
+			"transformations": [
+				{
+					"name": "DataQualityCheck",
+					"description": "Conditionally distributing the data in check_out_date, check_in_date groups, based on columns '{1}'"
+				},
+				{
+					"name": "DerivedColumns"
+				},
+				{
+					"name": "lookupInSynapse",
+					"description": "Loopup in 'DerivedColumns' from 'SynapseForLookup'"
+				}
+			],
 			"scriptLines": [
-				""
+				"parameters{",
+				"     check_in_date as string (check_in_date),",
+				"     check_out_date as date (check_out_date),",
+				"     booking_date as timestamp (booking_date),",
+				"     city as string (city),",
+				"     country as string (country),",
+				"     property_location as string (property_location),",
+				"     booking_id as string (booking_id),",
+				"     customer_id as string (customer_id),",
+				"     timestamp as string (timestamp),",
+				"     owner_id as string (owner_id),",
+				"     property_id as string (property_id),",
+				"     amount as double (amount),",
+				"     currency as string (currency)",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     enableChangeFeed: true,",
+				"     changeFeedStartFromTheBeginning: false,",
+				"     format: 'document') ~> BookingDataTransformation",
+				"BookingDataTransformation split($check_out_date<$check_in_date,",
+				"     disjoint: false) ~> DataQualityCheck@(BadRecords, AcceptedRecords)",
+				"DataQualityCheck@AcceptedRecords derive(stay_duration = (toTimestamp($check_out_date) - toTimestamp($check_in_date)),",
+				"          booking_year = year(toDate($booking_date)),",
+				"          booking_month = month(toDate($booking_date)),",
+				"          full_address = concat(toString(byItem(byName('property_location'), 'city')),  ', ',  toString(byItem(byName('property_location'), 'country'))),",
+				"          city = toString(byItem(byName('property_location'), 'city'))\r",
+				",",
+				"          country = toString(byItem(byName('property_location'), 'country'))\r",
+				",",
+				"          booking_id = $booking_id,",
+				"          booking_date = $booking_date,",
+				"          check_out_date = $check_out_date,",
+				"          check_in_date = $check_in_date,",
+				"          customer_id = $customer_id,",
+				"          timestamp = $timestamp,",
+				"          owner_id = $owner_id,",
+				"          check_in_date = $check_in_date,",
+				"          property_id = $property_id,",
+				"          amount = $amount,",
+				"          currency = $currency) ~> DerivedColumns",
+				"DerivedColumns, BookingDataTransformation lookup(ERROR_FUNCTION('') == ERROR_FUNCTION(''),",
+				"     multiple: false,",
+				"     pickup: 'first',",
+				"     desc(ERROR_FUNCTION(''), true),",
+				"     broadcast: 'auto')~> lookupInSynapse",
+				"lookupInSynapse sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          booking_id as string,",
+				"          property_id as string,",
+				"          customer_id as integer,",
+				"          owner_id as string,",
+				"          check_in_date as date,",
+				"          check_out_date as date,",
+				"          booking_date as timestamp,",
+				"          amount as double,",
+				"          currency as string,",
+				"          city as string,",
+				"          country as string,",
+				"          full_address as string,",
+				"          stay_duration as long,",
+				"          booking_year as integer,",
+				"          booking_month as integer,",
+				"          timestamp as timestamp",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     staged: true,",
+				"     allowCopyCommand: true,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> SynapseForLookup"
 			]
 		}
 	}
